@@ -1,16 +1,17 @@
 // Unit tests for the "medium difficulty" features:
-//   #3  SUM(price*qty) — aggregate functions with expression arguments
-//   #6  SELECT a+b, UPPER(name) — expression projection
-//   #7  CASE WHEN
-//   #8  WHERE UPPER(name)='X' — expression on left side of comparison
-//   #9  Non-equi JOIN (ON a.x > b.y)
-//   #11 INSERT INTO ... SELECT ...
+//
+//	#3  SUM(price*qty) — aggregate functions with expression arguments
+//	#6  SELECT a+b, UPPER(name) — expression projection
+//	#7  CASE WHEN
+//	#8  WHERE UPPER(name)='X' — expression on left side of comparison
+//	#9  Non-equi JOIN (ON a.x > b.y)
+//	#11 INSERT INTO ... SELECT ...
 package tests
 
 import (
 	"testing"
 
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 // ─── #6  Expression projection ───────────────────────────────────────────────

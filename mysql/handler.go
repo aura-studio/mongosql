@@ -10,7 +10,7 @@ import (
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/server"
 
-	sqldriver "github.com/example/mongodb-sql-driver/driver"
+	sqldriver "github.com/aura-studio/mongosql/driver"
 )
 
 // handler implements server.Handler. One handler instance is created per

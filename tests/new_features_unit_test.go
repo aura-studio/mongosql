@@ -1,7 +1,8 @@
 // Unit tests for the three "easy" features added in this iteration:
-//   #1  WHERE col = col  (column-to-column comparison via $expr)
-//   #4  UPDATE SET col = col ± expr  (pipeline-style update)
-//   #5  INSERT VALUES (constant arithmetic expressions)
+//
+//	#1  WHERE col = col  (column-to-column comparison via $expr)
+//	#4  UPDATE SET col = col ± expr  (pipeline-style update)
+//	#5  INSERT VALUES (constant arithmetic expressions)
 //
 // These tests only exercise the translator layer — no MongoDB connection needed.
 package tests
@@ -12,7 +13,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 // ─── #1  WHERE col = col ─────────────────────────────────────────────────────

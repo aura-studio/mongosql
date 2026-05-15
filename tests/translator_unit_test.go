@@ -6,8 +6,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/example/mongodb-sql-driver/translator"
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 func newTranslator(t *testing.T) *translator.Translator {

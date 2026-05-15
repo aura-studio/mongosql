@@ -6,7 +6,7 @@ import (
 
 	"vitess.io/vitess/go/vt/sqlparser"
 
-	"github.com/example/mongodb-sql-driver/translator/plan"
+	"github.com/aura-studio/mongosql/translator/plan"
 )
 
 func planSelectItems(exprs *sqlparser.SelectExprs) (items []plan.SelectItem, hasStar, hasAgg, hasExpr bool, err error) {

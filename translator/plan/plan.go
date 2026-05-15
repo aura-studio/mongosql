@@ -84,8 +84,8 @@ type SelectItem struct {
 // JoinPlan describes one JOIN against the main source.
 type JoinPlan struct {
 	Right      SourceRef
-	LeftField  FieldRef      // for equi-join
-	RightField FieldRef      // for equi-join
+	LeftField  FieldRef       // for equi-join
+	RightField FieldRef       // for equi-join
 	OnExpr     sqlparser.Expr // non-nil for non-equi join (raw ON expression)
 	Outer      bool
 }

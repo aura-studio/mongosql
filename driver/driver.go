@@ -9,8 +9,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/example/mongodb-sql-driver/translator"
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 // Driver executes SQL statements against a MongoDB database.

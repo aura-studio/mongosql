@@ -8,7 +8,7 @@ import (
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	sqldriver "github.com/example/mongodb-sql-driver/driver"
+	sqldriver "github.com/aura-studio/mongosql/driver"
 )
 
 // resultToMySQL converts a driver.Result into a *mysql.Result that the MySQL

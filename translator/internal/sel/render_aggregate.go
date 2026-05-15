@@ -7,9 +7,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"vitess.io/vitess/go/vt/sqlparser"
 
-	"github.com/example/mongodb-sql-driver/translator/internal/expr"
-	"github.com/example/mongodb-sql-driver/translator/plan"
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator/internal/expr"
+	"github.com/aura-studio/mongosql/translator/plan"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 // buildAggregate constructs a MongoDB aggregation pipeline for a SelectPlan

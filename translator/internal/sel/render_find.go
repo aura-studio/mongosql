@@ -5,8 +5,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/example/mongodb-sql-driver/translator/plan"
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator/plan"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 func buildFind(p *plan.SelectPlan) (stmt.Statement, error) {

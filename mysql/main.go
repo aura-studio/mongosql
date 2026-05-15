@@ -19,7 +19,7 @@ import (
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/server"
 
-	"github.com/example/mongodb-sql-driver/driver"
+	"github.com/aura-studio/mongosql/driver"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 
 	"vitess.io/vitess/go/vt/sqlparser"
 
-	"github.com/example/mongodb-sql-driver/translator/plan"
+	"github.com/aura-studio/mongosql/translator/plan"
 )
 
 // fieldRefFromExpr expects a column-only expression and returns its FieldRef.

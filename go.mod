@@ -1,4 +1,4 @@
-module github.com/example/mongodb-sql-driver
+module github.com/aura-studio/mongosql
 
 go 1.26.2
 

@@ -8,9 +8,9 @@ import (
 
 	"vitess.io/vitess/go/vt/sqlparser"
 
-	"github.com/example/mongodb-sql-driver/translator/internal/sel"
-	"github.com/example/mongodb-sql-driver/translator/internal/write"
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator/internal/sel"
+	"github.com/aura-studio/mongosql/translator/internal/write"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 // Statement re-exports stmt.Statement so callers can keep importing only

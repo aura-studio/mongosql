@@ -11,7 +11,7 @@ import (
 	mongoopt "go.mongodb.org/mongo-driver/v2/mongo/options"
 	"vitess.io/vitess/go/vt/sqlparser"
 
-	"github.com/example/mongodb-sql-driver/driver"
+	"github.com/aura-studio/mongosql/driver"
 )
 
 // handleAlterTable handles ALTER TABLE with various ADD/DROP/MODIFY/RENAME

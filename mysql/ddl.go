@@ -12,7 +12,7 @@ import (
 	mongoopt "go.mongodb.org/mongo-driver/v2/mongo/options"
 	"vitess.io/vitess/go/vt/sqlparser"
 
-	"github.com/example/mongodb-sql-driver/driver"
+	"github.com/aura-studio/mongosql/driver"
 )
 
 // handleCreateTable parses CREATE TABLE with vitess to extract column

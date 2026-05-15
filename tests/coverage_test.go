@@ -11,7 +11,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/example/mongodb-sql-driver/driver"
+	"github.com/aura-studio/mongosql/driver"
 )
 
 // ---------------------------------------------------------------------------

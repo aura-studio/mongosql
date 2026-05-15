@@ -7,9 +7,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"vitess.io/vitess/go/vt/sqlparser"
 
-	"github.com/example/mongodb-sql-driver/translator/internal/expr"
-	"github.com/example/mongodb-sql-driver/translator/internal/sel"
-	"github.com/example/mongodb-sql-driver/translator/stmt"
+	"github.com/aura-studio/mongosql/translator/internal/expr"
+	"github.com/aura-studio/mongosql/translator/internal/sel"
+	"github.com/aura-studio/mongosql/translator/stmt"
 )
 
 // Insert translates INSERT INTO ... VALUES (...) and INSERT INTO ... SELECT ...
