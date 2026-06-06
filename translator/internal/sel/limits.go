@@ -29,21 +29,22 @@ func buildSort(o sqlparser.OrderBy) (bson.D, error) {
 	return out, nil
 }
 
-func buildLimit(l *sqlparser.Limit) (limit, skip int64, err error) {
+func buildLimit(l *sqlparser.Limit) (limit, skip int64, hasLimit bool, err error) {
 	if l == nil {
-		return 0, 0, nil
+		return 0, 0, false, nil
 	}
 	if l.Rowcount != nil {
 		v, err := expr.Value(l.Rowcount)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, false, err
 		}
 		limit = toInt64(v)
+		hasLimit = true
 	}
 	if l.Offset != nil {
 		v, err := expr.Value(l.Offset)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, false, err
 		}
 		skip = toInt64(v)
 	}

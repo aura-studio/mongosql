@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -134,6 +135,15 @@ func boolToInt(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+// isIntegerValue reports whether v is an integer-typed Go value.
+func isIntegerValue(v interface{}) bool {
+	switch v.(type) {
+	case int, int32, int64:
+		return true
+	}
+	return false
 }
 
 // evalSubstring implements MySQL SUBSTRING(str, pos[, len]) semantics.
@@ -438,13 +448,13 @@ func evalFunc(f *sqlparser.FuncExpr) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		return int64(f + 0.999999999), nil
+		return int64(math.Ceil(f)), nil
 	case "FLOOR":
 		f, err := toFloat64(args[0])
 		if err != nil {
 			return nil, err
 		}
-		return int64(f), nil
+		return int64(math.Floor(f)), nil
 	case "ROUND":
 		f, err := toFloat64(args[0])
 		if err != nil {
@@ -466,23 +476,24 @@ func evalFunc(f *sqlparser.FuncExpr) (interface{}, error) {
 		if len(args) < 2 {
 			return nil, fmt.Errorf("MOD: 2 args required")
 		}
-		a, _ := toInt64(args[0])
-		b, _ := toInt64(args[1])
-		if b == 0 {
+		bf, _ := toFloat64(args[1])
+		if bf == 0 {
 			return nil, nil
 		}
-		return a % b, nil
+		af, _ := toFloat64(args[0])
+		// Integer operands keep integer result; otherwise MySQL MOD works on
+		// reals (e.g. MOD(5.5, 2) = 1.5).
+		if isIntegerValue(args[0]) && isIntegerValue(args[1]) {
+			return int64(af) % int64(bf), nil
+		}
+		return math.Mod(af, bf), nil
 	case "POW", "POWER":
 		if len(args) < 2 {
 			return nil, fmt.Errorf("POW: 2 args required")
 		}
 		a, _ := toFloat64(args[0])
 		b, _ := toFloat64(args[1])
-		result := 1.0
-		for i := 0; i < int(b); i++ {
-			result *= a
-		}
-		return result, nil
+		return math.Pow(a, b), nil
 	case "GREATEST":
 		if len(args) == 0 {
 			return nil, nil
@@ -766,11 +777,7 @@ func TranslateWhere(e sqlparser.Expr) (bson.M, error) {
 		return bson.M{"$or": []bson.M{l, r}}, nil
 
 	case *sqlparser.NotExpr:
-		inner, err := TranslateWhere(v.Expr)
-		if err != nil {
-			return nil, err
-		}
-		return bson.M{"$nor": []bson.M{inner}}, nil
+		return negateWhere(v.Expr)
 
 	case *sqlparser.ComparisonExpr:
 		return translateComparison(v)
@@ -819,6 +826,106 @@ func TranslateWhere(e sqlparser.Expr) (bson.M, error) {
 		}
 	}
 	return nil, fmt.Errorf("unsupported WHERE expression: %T", e)
+}
+
+// negateWhere translates NOT(e) using SQL three-valued logic by pushing the
+// negation down to leaf predicates, so that rows where e is NULL/unknown are
+// excluded (matching MySQL) rather than included as a bare $nor would.
+func negateWhere(e sqlparser.Expr) (bson.M, error) {
+	switch v := e.(type) {
+	case *sqlparser.NotExpr:
+		// NOT NOT x = x
+		return TranslateWhere(v.Expr)
+	case *sqlparser.AndExpr:
+		l, err := negateWhere(v.Left)
+		if err != nil {
+			return nil, err
+		}
+		r, err := negateWhere(v.Right)
+		if err != nil {
+			return nil, err
+		}
+		return bson.M{"$or": []bson.M{l, r}}, nil
+	case *sqlparser.OrExpr:
+		l, err := negateWhere(v.Left)
+		if err != nil {
+			return nil, err
+		}
+		r, err := negateWhere(v.Right)
+		if err != nil {
+			return nil, err
+		}
+		return bson.M{"$and": []bson.M{l, r}}, nil
+	case *sqlparser.ComparisonExpr:
+		if neg, ok := negateComparisonOp(v.Operator); ok {
+			nc := *v
+			nc.Operator = neg
+			return translateComparison(&nc)
+		}
+	case *sqlparser.IsExpr:
+		nc := *v
+		nc.Right = negateIsOp(v.Right)
+		return TranslateWhere(&nc)
+	case *sqlparser.BetweenExpr:
+		nc := *v
+		nc.IsBetween = !v.IsBetween
+		return TranslateWhere(&nc)
+	}
+	// Fallback for shapes without a clean negation: structural $nor (may
+	// include NULL rows, but preserves the previous behaviour).
+	inner, err := TranslateWhere(e)
+	if err != nil {
+		return nil, err
+	}
+	return bson.M{"$nor": []bson.M{inner}}, nil
+}
+
+func negateComparisonOp(op sqlparser.ComparisonExprOperator) (sqlparser.ComparisonExprOperator, bool) {
+	switch op {
+	case sqlparser.EqualOp:
+		return sqlparser.NotEqualOp, true
+	case sqlparser.NotEqualOp:
+		return sqlparser.EqualOp, true
+	case sqlparser.LessThanOp:
+		return sqlparser.GreaterEqualOp, true
+	case sqlparser.LessEqualOp:
+		return sqlparser.GreaterThanOp, true
+	case sqlparser.GreaterThanOp:
+		return sqlparser.LessEqualOp, true
+	case sqlparser.GreaterEqualOp:
+		return sqlparser.LessThanOp, true
+	case sqlparser.InOp:
+		return sqlparser.NotInOp, true
+	case sqlparser.NotInOp:
+		return sqlparser.InOp, true
+	case sqlparser.LikeOp:
+		return sqlparser.NotLikeOp, true
+	case sqlparser.NotLikeOp:
+		return sqlparser.LikeOp, true
+	case sqlparser.RegexpOp:
+		return sqlparser.NotRegexpOp, true
+	case sqlparser.NotRegexpOp:
+		return sqlparser.RegexpOp, true
+	}
+	return op, false
+}
+
+func negateIsOp(op sqlparser.IsExprOperator) sqlparser.IsExprOperator {
+	switch op {
+	case sqlparser.IsNullOp:
+		return sqlparser.IsNotNullOp
+	case sqlparser.IsNotNullOp:
+		return sqlparser.IsNullOp
+	case sqlparser.IsTrueOp:
+		return sqlparser.IsNotTrueOp
+	case sqlparser.IsNotTrueOp:
+		return sqlparser.IsTrueOp
+	case sqlparser.IsFalseOp:
+		return sqlparser.IsNotFalseOp
+	case sqlparser.IsNotFalseOp:
+		return sqlparser.IsFalseOp
+	}
+	return op
 }
 
 // exprOpToMongo maps a SQL comparison operator to the corresponding
@@ -890,7 +997,15 @@ func translateComparison(c *sqlparser.ComparisonExpr) (bson.M, error) {
 		if err != nil {
 			return nil, err
 		}
-		return bson.M{field: bson.M{"$ne": v}}, nil
+		if v == nil {
+			return bson.M{field: bson.M{"$ne": nil}}, nil
+		}
+		// MySQL excludes NULLs from "col != v" (three-valued logic); a bare
+		// $ne would also match missing/NULL fields, so require non-NULL too.
+		return bson.M{"$and": []bson.M{
+			{field: bson.M{"$ne": v}},
+			{field: bson.M{"$ne": nil}},
+		}}, nil
 	case sqlparser.LessThanOp:
 		v, err := Value(c.Right)
 		if err != nil {
@@ -932,13 +1047,14 @@ func translateComparison(c *sqlparser.ComparisonExpr) (bson.M, error) {
 		if !ok || lit.Type != sqlparser.StrVal {
 			return nil, fmt.Errorf("LIKE right side must be a string literal")
 		}
-		return bson.M{field: bson.M{"$regex": LikeToRegex(lit.Val)}}, nil
+		// MySQL LIKE is case-insensitive under the default *_ci collation.
+		return bson.M{field: bson.Regex{Pattern: LikeToRegex(lit.Val), Options: "i"}}, nil
 	case sqlparser.NotLikeOp:
 		lit, ok := c.Right.(*sqlparser.Literal)
 		if !ok || lit.Type != sqlparser.StrVal {
 			return nil, fmt.Errorf("NOT LIKE right side must be a string literal")
 		}
-		return bson.M{field: bson.M{"$not": bson.M{"$regex": LikeToRegex(lit.Val)}}}, nil
+		return bson.M{field: bson.M{"$not": bson.Regex{Pattern: LikeToRegex(lit.Val), Options: "i"}}}, nil
 	case sqlparser.RegexpOp:
 		lit, ok := c.Right.(*sqlparser.Literal)
 		if !ok || lit.Type != sqlparser.StrVal {

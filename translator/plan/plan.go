@@ -66,10 +66,11 @@ const (
 
 // AggSpec describes a single aggregate call.
 type AggSpec struct {
-	Func    AggFunc
-	Arg     *FieldRef      // simple column argument
-	ArgExpr sqlparser.Expr // arbitrary expression argument (e.g. SUM(price*qty))
-	Star    bool
+	Func     AggFunc
+	Arg      *FieldRef      // simple column argument
+	ArgExpr  sqlparser.Expr // arbitrary expression argument (e.g. SUM(price*qty))
+	Star     bool
+	Distinct bool // COUNT(DISTINCT col), SUM(DISTINCT col), ...
 }
 
 // SelectItem is one entry in the SELECT list.
@@ -100,6 +101,7 @@ type SelectPlan struct {
 	Sort           bson.D
 	Limit          int64
 	Offset         int64
+	HasLimit       bool // true when an explicit LIMIT clause was present (distinguishes LIMIT 0 from no limit)
 	Distinct       bool
 	HasStar        bool
 	HasAgg         bool

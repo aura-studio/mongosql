@@ -70,17 +70,17 @@ func planAggSpec(e sqlparser.Expr) (*plan.AggSpec, error) {
 		field, err := fieldRefFromExpr(v.Args[0])
 		if err != nil {
 			// Expression argument for COUNT — store raw expr.
-			return &plan.AggSpec{Func: plan.AggFuncCount, ArgExpr: v.Args[0]}, nil
+			return &plan.AggSpec{Func: plan.AggFuncCount, ArgExpr: v.Args[0], Distinct: v.Distinct}, nil
 		}
-		return &plan.AggSpec{Func: plan.AggFuncCount, Arg: &field}, nil
+		return &plan.AggSpec{Func: plan.AggFuncCount, Arg: &field, Distinct: v.Distinct}, nil
 	case *sqlparser.Sum:
-		return planUnaryAgg(plan.AggFuncSum, v.Arg, "SUM")
+		return planUnaryAgg(plan.AggFuncSum, v.Arg, v.Distinct, "SUM")
 	case *sqlparser.Avg:
-		return planUnaryAgg(plan.AggFuncAvg, v.Arg, "AVG")
+		return planUnaryAgg(plan.AggFuncAvg, v.Arg, v.Distinct, "AVG")
 	case *sqlparser.Min:
-		return planUnaryAgg(plan.AggFuncMin, v.Arg, "MIN")
+		return planUnaryAgg(plan.AggFuncMin, v.Arg, v.Distinct, "MIN")
 	case *sqlparser.Max:
-		return planUnaryAgg(plan.AggFuncMax, v.Arg, "MAX")
+		return planUnaryAgg(plan.AggFuncMax, v.Arg, v.Distinct, "MAX")
 	case *sqlparser.FuncExpr:
 		name := plan.AggFunc(strings.ToUpper(v.Name.String()))
 		if len(v.Exprs) == 0 {
@@ -96,11 +96,11 @@ func planAggSpec(e sqlparser.Expr) (*plan.AggSpec, error) {
 	return nil, fmt.Errorf("not an aggregate expression: %T", e)
 }
 
-func planUnaryAgg(fn plan.AggFunc, e sqlparser.Expr, name string) (*plan.AggSpec, error) {
+func planUnaryAgg(fn plan.AggFunc, e sqlparser.Expr, distinct bool, name string) (*plan.AggSpec, error) {
 	field, err := fieldRefFromExpr(e)
 	if err != nil {
 		// Expression argument (e.g. SUM(price * qty)).
-		return &plan.AggSpec{Func: fn, ArgExpr: e}, nil
+		return &plan.AggSpec{Func: fn, ArgExpr: e, Distinct: distinct}, nil
 	}
-	return &plan.AggSpec{Func: fn, Arg: &field}, nil
+	return &plan.AggSpec{Func: fn, Arg: &field, Distinct: distinct}, nil
 }

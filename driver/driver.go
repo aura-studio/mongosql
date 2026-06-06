@@ -94,6 +94,11 @@ func (d *Driver) Exec(ctx context.Context, sql string) (*Result, error) {
 func (d *Driver) execFind(ctx context.Context, s *stmt.FindStmt) (*Result, error) {
 	coll := d.db.Collection(s.Collection)
 
+	// Statically-empty result (e.g. LIMIT 0): return no rows without querying.
+	if s.Empty {
+		return &Result{Kind: "select", Rows: []map[string]interface{}{}}, nil
+	}
+
 	if s.Distinct != "" {
 		dr := coll.Distinct(ctx, s.Distinct, s.Filter)
 		if err := dr.Err(); err != nil {
@@ -137,6 +142,10 @@ func (d *Driver) execFind(ctx context.Context, s *stmt.FindStmt) (*Result, error
 }
 
 func (d *Driver) execAggregate(ctx context.Context, s *stmt.AggregateStmt) (*Result, error) {
+	// Statically-empty result (e.g. LIMIT 0): return no rows without querying.
+	if s.Empty {
+		return &Result{Kind: "select", Rows: []map[string]interface{}{}}, nil
+	}
 	coll := d.db.Collection(s.Collection)
 	cur, err := coll.Aggregate(ctx, s.Pipeline)
 	if err != nil {

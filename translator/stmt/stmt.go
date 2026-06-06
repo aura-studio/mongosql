@@ -18,6 +18,7 @@ type FindStmt struct {
 	Limit      int64 // 0 means no limit
 	Skip       int64
 	Distinct   string // non-empty for SELECT DISTINCT col FROM ...
+	Empty      bool   // true for a statically-empty result set (e.g. LIMIT 0)
 }
 
 func (*FindStmt) statementType() string { return "find" }
@@ -27,6 +28,7 @@ func (*FindStmt) statementType() string { return "find" }
 type AggregateStmt struct {
 	Collection string
 	Pipeline   []bson.M
+	Empty      bool // true for a statically-empty result set (e.g. LIMIT 0)
 }
 
 func (*AggregateStmt) statementType() string { return "aggregate" }

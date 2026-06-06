@@ -56,7 +56,7 @@ func Plan(s *sqlparser.Select) (*plan.SelectPlan, error) {
 		return nil, err
 	}
 
-	limit, offset, err := buildLimit(s.Limit)
+	limit, offset, hasLimit, err := buildLimit(s.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +70,7 @@ func Plan(s *sqlparser.Select) (*plan.SelectPlan, error) {
 		Sort:           sort,
 		Limit:          limit,
 		Offset:         offset,
+		HasLimit:       hasLimit,
 		Distinct:       s.Distinct,
 		HasStar:        hasStar,
 		HasAgg:         hasAgg,

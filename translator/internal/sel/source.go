@@ -47,7 +47,31 @@ func extractFromPlan(te sqlparser.TableExpr) (plan.SourceRef, []plan.JoinPlan, e
 			return plan.SourceRef{}, nil, err
 		}
 
-		outer := v.Join == sqlparser.LeftJoinType || v.Join == sqlparser.NaturalLeftJoinType
+		isLeft := v.Join == sqlparser.LeftJoinType || v.Join == sqlparser.NaturalLeftJoinType
+		isRight := v.Join == sqlparser.RightJoinType || v.Join == sqlparser.NaturalRightJoinType
+
+		// A RIGHT JOIN is rewritten as a LEFT JOIN with the two tables swapped:
+		// "A RIGHT JOIN B ON c" == "B LEFT JOIN A ON c". The lookup model builds
+		// the pipeline on the main (left) source, so the right table must become
+		// the main source. This is only well-defined for a two-table join.
+		if isRight {
+			if len(leftJoins) > 0 {
+				return plan.SourceRef{}, nil, fmt.Errorf("RIGHT JOIN with more than two tables is not supported")
+			}
+			newMain := rightSource
+			joined := left
+			if lf, rf, eqErr := extractJoinOnFields(v.Condition, newMain.Alias, joined.Alias); eqErr == nil {
+				join := plan.JoinPlan{Right: joined, LeftField: lf, RightField: rf, Outer: true}
+				return newMain, []plan.JoinPlan{join}, nil
+			}
+			if v.Condition == nil || v.Condition.On == nil {
+				return plan.SourceRef{}, nil, fmt.Errorf("JOIN requires ON clause")
+			}
+			join := plan.JoinPlan{Right: joined, OnExpr: v.Condition.On, Outer: true}
+			return newMain, []plan.JoinPlan{join}, nil
+		}
+
+		outer := isLeft
 
 		// Try equi-join first (single equality on two columns).
 		leftField, rightField, eqErr := extractJoinOnFields(v.Condition, left.Alias, rightSource.Alias)

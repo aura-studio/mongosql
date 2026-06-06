@@ -368,11 +368,11 @@ func translateComparisonAgg(c *sqlparser.ComparisonExpr, mainAlias string) (inte
 	case sqlparser.NotInOp:
 		return m("$not", arr(m("$in", arr(left, right)))), nil
 	case sqlparser.LikeOp:
-		// $regexMatch
+		// $regexMatch (case-insensitive, matching MySQL default collation)
 		lit, ok := c.Right.(*sqlparser.Literal)
 		if ok && lit.Type == sqlparser.StrVal {
 			return m("$regexMatch", map[string]interface{}{
-				"input": left, "regex": LikeToRegex(lit.Val),
+				"input": left, "regex": LikeToRegex(lit.Val), "options": "i",
 			}), nil
 		}
 		return nil, fmt.Errorf("LIKE in expression requires string literal")
@@ -380,7 +380,7 @@ func translateComparisonAgg(c *sqlparser.ComparisonExpr, mainAlias string) (inte
 		lit, ok := c.Right.(*sqlparser.Literal)
 		if ok && lit.Type == sqlparser.StrVal {
 			return m("$not", arr(m("$regexMatch", map[string]interface{}{
-				"input": left, "regex": LikeToRegex(lit.Val),
+				"input": left, "regex": LikeToRegex(lit.Val), "options": "i",
 			}))), nil
 		}
 		return nil, fmt.Errorf("NOT LIKE in expression requires string literal")
@@ -489,10 +489,18 @@ func translateFuncExpr(f *sqlparser.FuncExpr, mainAlias string) (interface{}, er
 	case "FLOOR":
 		return m("$floor", args[0]), nil
 	case "ROUND":
+		x := args[0]
+		var d interface{} = int64(0)
 		if len(args) >= 2 {
-			return m("$round", arr(args[0], args[1])), nil
+			d = args[1]
 		}
-		return m("$round", arr(args[0], int64(0))), nil
+		// MySQL ROUND rounds half away from zero; MongoDB $round uses banker's
+		// rounding. Emulate: sign(x) * floor(|x| * 10^d + 0.5) / 10^d.
+		mult := m("$pow", arr(int64(10), d))
+		scaled := m("$add", arr(m("$multiply", arr(m("$abs", x), mult)), 0.5))
+		floored := m("$floor", scaled)
+		sign := m("$cond", arr(m("$lt", arr(x, int64(0))), int64(-1), int64(1)))
+		return m("$divide", arr(m("$multiply", arr(sign, floored)), mult)), nil
 	case "MOD":
 		if len(args) < 2 {
 			return nil, fmt.Errorf("MOD requires 2 args")

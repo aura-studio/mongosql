@@ -22,6 +22,9 @@ func buildFind(p *plan.SelectPlan) (stmt.Statement, error) {
 		Sort:       p.Sort,
 		Limit:      p.Limit,
 		Skip:       p.Offset,
+		// An explicit LIMIT 0 selects zero rows (MySQL semantics); MongoDB
+		// treats Find limit 0 as "no limit", so mark the result statically empty.
+		Empty: p.HasLimit && p.Limit == 0,
 	}
 
 	if p.Distinct && len(p.Items) == 1 && !p.HasStar {
