@@ -15,10 +15,11 @@ import (
 
 // Driver executes SQL statements against a MongoDB database.
 type Driver struct {
-	client  *mongo.Client
-	db      *mongo.Database
-	tr      *translator.Translator
-	Schemas *SchemaStore
+	client     *mongo.Client
+	db         *mongo.Database
+	tr         *translator.Translator
+	Schemas    *SchemaStore
+	ownsClient bool // true only when Connect dialed the client (so Close may disconnect it)
 }
 
 // Result represents the outcome of executing a SQL statement.
@@ -31,14 +32,14 @@ type Result struct {
 	DeletedCount  int64                    // populated for DELETE
 }
 
-// Connect dials a MongoDB at uri and selects dbName.
-func Connect(ctx context.Context, uri, dbName string) (*Driver, error) {
-	client, err := mongo.Connect(options.Client().ApplyURI(uri))
-	if err != nil {
-		return nil, fmt.Errorf("connect mongo: %w", err)
-	}
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, fmt.Errorf("ping mongo: %w", err)
+// New builds a Driver over an existing MongoDB connection (an injected client +
+// database). The caller owns the connection lifecycle — Close will NOT
+// disconnect it. This is the entry point for embedding mongosql in another
+// service that already manages its own *mongo.Client (e.g. tango's dao), sharing
+// one connection pool instead of dialing a second one.
+func New(client *mongo.Client, db *mongo.Database) (*Driver, error) {
+	if client == nil || db == nil {
+		return nil, fmt.Errorf("mongosql: nil client or database")
 	}
 	tr, err := translator.New()
 	if err != nil {
@@ -46,14 +47,40 @@ func Connect(ctx context.Context, uri, dbName string) (*Driver, error) {
 	}
 	return &Driver{
 		client:  client,
-		db:      client.Database(dbName),
+		db:      db,
 		tr:      tr,
 		Schemas: newSchemaStore(),
 	}, nil
 }
 
-// Close terminates the underlying client connection.
+// Connect dials a MongoDB at uri and selects dbName. The returned Driver owns
+// the connection, so Close disconnects it. For a connection you already own,
+// use New instead.
+func Connect(ctx context.Context, uri, dbName string) (*Driver, error) {
+	client, err := mongo.Connect(options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, fmt.Errorf("connect mongo: %w", err)
+	}
+	if err := client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(ctx)
+		return nil, fmt.Errorf("ping mongo: %w", err)
+	}
+	d, err := New(client, client.Database(dbName))
+	if err != nil {
+		_ = client.Disconnect(ctx)
+		return nil, err
+	}
+	d.ownsClient = true
+	return d, nil
+}
+
+// Close disconnects the underlying client only when this Driver owns it (created
+// via Connect). For injected connections (created via New) Close is a no-op, so
+// the embedding service's connection pool is left intact.
 func (d *Driver) Close(ctx context.Context) error {
+	if !d.ownsClient || d.client == nil {
+		return nil
+	}
 	return d.client.Disconnect(ctx)
 }
 
