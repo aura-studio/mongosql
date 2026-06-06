@@ -3,7 +3,7 @@
 Two ways to construct a `driver.Driver`, differing only in **who owns the
 MongoDB connection**.
 
-| | `driver.New(client, db)` — [examples/inject](inject) | `driver.Connect(ctx, uri, db)` — [examples/connect](connect) |
+| | `driver.New(client, dbName)` — [examples/inject](inject) | `driver.Connect(ctx, uri, dbName)` — [examples/connect](connect) |
 |---|---|---|
 | Connection | **injected** — you already have a `*mongo.Client` | **dialed** by mongosql from the URI |
 | Lifecycle | you own it; `Driver.Close` is a **no-op** | mongosql owns it; `Driver.Close` disconnects |
@@ -30,8 +30,8 @@ Args are `[uri] [database] [sql]` (all optional; default to
 client, _ := mongo.Connect(options.Client().ApplyURI(uri)) // you own this
 defer client.Disconnect(ctx)
 
-d, _ := driver.New(client, client.Database("mydb")) // share it; no second dial
-defer d.Close(ctx)                                  // no-op — your pool is untouched
+d, _ := driver.New(client, "mydb") // share it; no second dial
+defer d.Close(ctx)                 // no-op — your pool is untouched
 
 res, _ := d.Exec(ctx, "SELECT * FROM users LIMIT 5")
 ```

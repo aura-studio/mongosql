@@ -32,14 +32,17 @@ type Result struct {
 	DeletedCount  int64                    // populated for DELETE
 }
 
-// New builds a Driver over an existing MongoDB connection (an injected client +
-// database). The caller owns the connection lifecycle — Close will NOT
-// disconnect it. This is the entry point for embedding mongosql in another
-// service that already manages its own *mongo.Client (e.g. tango's dao), sharing
-// one connection pool instead of dialing a second one.
-func New(client *mongo.Client, db *mongo.Database) (*Driver, error) {
-	if client == nil || db == nil {
-		return nil, fmt.Errorf("mongosql: nil client or database")
+// New builds a Driver over an existing client, selecting dbName. The connection
+// is injected: the caller owns its lifecycle — Close will NOT disconnect it.
+// This is the entry point for embedding mongosql in another service that already
+// manages its own *mongo.Client (e.g. tango's dao), sharing one connection pool
+// instead of dialing a second one.
+func New(client *mongo.Client, dbName string) (*Driver, error) {
+	if client == nil {
+		return nil, fmt.Errorf("mongosql: nil client")
+	}
+	if dbName == "" {
+		return nil, fmt.Errorf("mongosql: empty database name")
 	}
 	tr, err := translator.New()
 	if err != nil {
@@ -47,7 +50,7 @@ func New(client *mongo.Client, db *mongo.Database) (*Driver, error) {
 	}
 	return &Driver{
 		client:  client,
-		db:      db,
+		db:      client.Database(dbName),
 		tr:      tr,
 		Schemas: newSchemaStore(),
 	}, nil
@@ -65,7 +68,7 @@ func Connect(ctx context.Context, uri, dbName string) (*Driver, error) {
 		_ = client.Disconnect(ctx)
 		return nil, fmt.Errorf("ping mongo: %w", err)
 	}
-	d, err := New(client, client.Database(dbName))
+	d, err := New(client, dbName)
 	if err != nil {
 		_ = client.Disconnect(ctx)
 		return nil, err

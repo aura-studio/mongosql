@@ -1,4 +1,4 @@
-// Command inject demonstrates the injected-connection mode: driver.New(client, db).
+// Command inject demonstrates the injected-connection mode: driver.New(client, dbName).
 //
 // Use this when your program already owns a *mongo.Client (a shared connection
 // pool) and wants to run SQL through mongosql over it — e.g. embedding mongosql
@@ -31,8 +31,9 @@ func main() {
 	}
 	defer func() { _ = client.Disconnect(ctx) }() // your client → you close it
 
-	// Inject the existing connection. mongosql will not dial or close it.
-	d, err := driver.New(client, client.Database(dbName))
+	// Inject the existing connection (selecting dbName). mongosql will not dial
+	// or close it.
+	d, err := driver.New(client, dbName)
 	if err != nil {
 		log.Fatalf("driver.New: %v", err)
 	}
