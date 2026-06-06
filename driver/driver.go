@@ -4,6 +4,8 @@ package driver
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -32,34 +34,38 @@ type Result struct {
 	DeletedCount  int64                    // populated for DELETE
 }
 
-// New builds a Driver over an existing client, selecting dbName. The connection
-// is injected: the caller owns its lifecycle — Close will NOT disconnect it.
-// This is the entry point for embedding mongosql in another service that already
-// manages its own *mongo.Client (e.g. tango's dao), sharing one connection pool
-// instead of dialing a second one.
-func New(client *mongo.Client, dbName string) (*Driver, error) {
-	if client == nil {
-		return nil, fmt.Errorf("mongosql: nil client")
-	}
-	if dbName == "" {
-		return nil, fmt.Errorf("mongosql: empty database name")
+// New builds a Driver over an existing *mongo.Database. The connection is
+// injected: the caller owns its lifecycle — Close will NOT disconnect it. This
+// is the entry point for embedding mongosql in another service that already
+// resolved its own *mongo.Database (e.g. tango's dao, whose MongoResource.DB is
+// resolved from the URI path), sharing one connection pool instead of dialing a
+// second one. The underlying *mongo.Client is taken from db.Client().
+func New(db *mongo.Database) (*Driver, error) {
+	if db == nil {
+		return nil, fmt.Errorf("mongosql: nil database")
 	}
 	tr, err := translator.New()
 	if err != nil {
 		return nil, err
 	}
 	return &Driver{
-		client:  client,
-		db:      client.Database(dbName),
+		client:  db.Client(),
+		db:      db,
 		tr:      tr,
 		Schemas: newSchemaStore(),
 	}, nil
 }
 
-// Connect dials a MongoDB at uri and selects dbName. The returned Driver owns
-// the connection, so Close disconnects it. For a connection you already own,
-// use New instead.
-func Connect(ctx context.Context, uri, dbName string) (*Driver, error) {
+// Connect dials a MongoDB at uri and selects the database named in the URI path,
+// e.g. mongodb://host:27017/mydb selects "mydb". This mirrors how tango's mongo
+// module resolves the database, so the same URI works for both. The returned
+// Driver owns the connection, so Close disconnects it. For a connection you
+// already own, use New instead.
+func Connect(ctx context.Context, uri string) (*Driver, error) {
+	dbName, err := DBNameFromURI(uri)
+	if err != nil {
+		return nil, err
+	}
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, fmt.Errorf("connect mongo: %w", err)
@@ -68,13 +74,29 @@ func Connect(ctx context.Context, uri, dbName string) (*Driver, error) {
 		_ = client.Disconnect(ctx)
 		return nil, fmt.Errorf("ping mongo: %w", err)
 	}
-	d, err := New(client, dbName)
+	d, err := New(client.Database(dbName))
 	if err != nil {
 		_ = client.Disconnect(ctx)
 		return nil, err
 	}
 	d.ownsClient = true
 	return d, nil
+}
+
+// DBNameFromURI extracts the database name from a MongoDB connection URI path,
+// matching the convention used by tango's mongo module: the database is the
+// first path segment, as in mongodb://host:27017/mydb. It returns an error when
+// no database is present, since mongosql has no meaningful default.
+func DBNameFromURI(uri string) (string, error) {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return "", fmt.Errorf("mongosql: parse uri: %w", err)
+	}
+	db := strings.Trim(u.Path, "/")
+	if db == "" {
+		return "", fmt.Errorf("mongosql: no database in uri path (expected mongodb://host/<db>)")
+	}
+	return db, nil
 }
 
 // Close disconnects the underlying client only when this Driver owns it (created

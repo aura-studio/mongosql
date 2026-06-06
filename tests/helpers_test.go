@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -25,9 +26,16 @@ func newDriver(t *testing.T) *driver.Driver {
 	if uri == "" {
 		uri = defaultURI
 	}
+	// The db now travels in the URI path; force the isolated test db regardless
+	// of any database the env URI may carry.
+	u, err := url.Parse(uri)
+	if err != nil {
+		t.Fatalf("parse MONGO_URI %q: %v", uri, err)
+	}
+	u.Path = "/" + dbName
 	ctx, cancel := context.WithTimeout(testCtx, 5*time.Second)
 	defer cancel()
-	d, err := driver.Connect(ctx, uri, dbName)
+	d, err := driver.Connect(ctx, u.String())
 	if err != nil {
 		t.Skipf("skipping: cannot connect to MongoDB at %s: %v", uri, err)
 	}

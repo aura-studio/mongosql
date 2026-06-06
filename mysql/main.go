@@ -25,8 +25,7 @@ import (
 func main() {
 	var (
 		listen   = flag.String("listen", "127.0.0.1:3306", "MySQL wire protocol listen address")
-		mongoURI = flag.String("mongo-uri", "mongodb://localhost:27017", "MongoDB connection URI")
-		dbName   = flag.String("db", "sqlmongo", "default MongoDB database to expose as the current schema")
+		mongoURI = flag.String("mongo-uri", "mongodb://localhost:27017/sqlmongo", "MongoDB connection URI; the database to expose as the current schema is taken from its path")
 		user     = flag.String("user", "root", "expected MySQL username")
 		password = flag.String("password", "", "expected MySQL password (empty disables password check)")
 	)
@@ -35,12 +34,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	d, err := driver.Connect(ctx, *mongoURI, *dbName)
+	d, err := driver.Connect(ctx, *mongoURI)
 	if err != nil {
 		log.Fatalf("connect mongo: %v", err)
 	}
 	defer d.Close(context.Background())
-	log.Printf("connected to mongo %s, default db=%s", *mongoURI, *dbName)
+	dbName := d.DB().Name()
+	log.Printf("connected to mongo %s, default db=%s", *mongoURI, dbName)
 
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
@@ -99,7 +99,7 @@ func main() {
 				delete(activeConns, c)
 				mu.Unlock()
 			}()
-			handleConn(srv, c, *user, *password, d, *dbName)
+			handleConn(srv, c, *user, *password, d, dbName)
 		}(conn)
 	}
 	wg.Wait()
