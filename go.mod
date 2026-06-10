@@ -1,11 +1,11 @@
 module github.com/aura-studio/mongosql
 
-go 1.26.2
+go 1.25.5
 
 require (
 	github.com/go-mysql-org/go-mysql v1.15.0
 	go.mongodb.org/mongo-driver/v2 v2.6.0
-	vitess.io/vitess v0.24.1
+	vitess.io/vitess v0.23.0
 )
 
 require (
@@ -15,8 +15,6 @@ require (
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
-	github.com/lmittmann/tint v1.1.3 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/pingcap/errors v0.11.5-0.20260310054046-9c8b3586e4b2 // indirect
 	github.com/pingcap/log v1.1.1-0.20260227082333-572e590d08f1 // indirect
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20260504140133-511dba1dbe17 // indirect
